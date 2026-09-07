@@ -13,20 +13,28 @@ jobs:
         run: unzip -o ats.zip
       - name: Fix
         run: |
-          rm -rf app/src/main/java/com/ats/audioplayer/*
-          mkdir -p app/src/main/java/com/ats/audioplayer app/src/main/res/xml app/src/main/res/mipmap
+          rm -rf app/src/main/java/com/ats/audioplayer/* app/src/main/res
+          mkdir -p app/src/main/java/com/ats/audioplayer app/src/main/res/values app/src/main/res/xml app/src/main/res/mipmap
           cat > settings.gradle <<'EOF'
           pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
           dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
           include ':app'
           EOF
-          echo "// empty root" > build.gradle
+          echo "// empty" > build.gradle
           cat > app/build.gradle <<'EOF'
           plugins { id 'com.android.application' version '8.1.4' }
           android { namespace 'com.ats.audioplayer'; compileSdk 34; defaultConfig { applicationId "com.ats.audioplayer"; minSdk 24; targetSdk 34; versionCode 1; versionName "1.0" }; compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 } }
-          dependencies { implementation 'androidx.appcompat:appcompat:1.6.1'; implementation 'com.google.android.exoplayer:exoplayer:2.19.1'; }
+          dependencies { implementation 'androidx.appcompat:appcompat:1.6.1'; implementation 'com.google.android.material:material:1.11.0'; implementation 'com.google.android.exoplayer:exoplayer:2.19.1'; }
           EOF
-          mkdir -p app/src/main/res/xml
+          cat > app/src/main/res/values/strings.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?><resources><string name="app_name">ATS SpotiFLAC</string></resources>
+          EOF
+          cat > app/src/main/res/values/colors.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?><resources><color name="black">#000000</color><color name="white">#FFFFFF</color></resources>
+          EOF
+          cat > app/src/main/res/values/themes.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?><resources><style name="Theme.ATS" parent="Theme.AppCompat.Light.NoActionBar"/></resources>
+          EOF
           echo '<?xml version="1.0" encoding="utf-8"?><data-extraction-rules><cloud-backup/><device-transfer/></data-extraction-rules>' > app/src/main/res/xml/data_extraction_rules.xml
           echo '<?xml version="1.0" encoding="utf-8"?><full-backup-content></full-backup-content>' > app/src/main/res/xml/backup_rules.xml
           echo "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=" | base64 -d > app/src/main/res/mipmap/ic_launcher.png
@@ -36,7 +44,7 @@ jobs:
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
               <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-              <application android:icon="@mipmap/ic_launcher" android:label="ATS SpotiFLAC" android:theme="@android:style/Theme.NoTitleBar">
+              <application android:icon="@mipmap/ic_launcher" android:label="ATS SpotiFLAC" android:theme="@style/Theme.ATS">
                   <activity android:name=".MainActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter></activity>
               </application>
           </manifest>
@@ -68,7 +76,6 @@ jobs:
               @Override protected void onDestroy(){ super.onDestroy(); if(player!=null) player.release(); }
           }
           EOF
-
       - name: Build
         run: gradle assembleDebug
       - uses: actions/upload-artifact@v4
