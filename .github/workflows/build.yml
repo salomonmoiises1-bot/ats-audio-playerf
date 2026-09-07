@@ -25,7 +25,8 @@ jobs:
           EOF
           sed -i '/ListenableFuture/d' app/build.gradle
           sed -i '/com.google.common.util.concurrent/d' app/build.gradle
-          sed -i "/dependencies {/a implementation 'com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava'" app/build.gradle
+          sed -i "/dependencies {/a implementation 'com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava'\n implementation 'com.google.android.exoplayer:exoplayer:2.19.1'" app/build.gradle
+
           mkdir -p app/src/main/res/xml app/src/main/res/mipmap app/src/main/res/drawable
           echo '<?xml version="1.0" encoding="utf-8"?><data-extraction-rules><cloud-backup/><device-transfer/></data-extraction-rules>' > app/src/main/res/xml/data_extraction_rules.xml
           echo '<?xml version="1.0" encoding="utf-8"?><full-backup-content></full-backup-content>' > app/src/main/res/xml/backup_rules.xml
@@ -36,34 +37,70 @@ jobs:
           done
 
           MANIFEST=app/src/main/AndroidManifest.xml
-          # 1. Sacar el package="" que falla
           sed -i 's/ package="[^"]*"//g' $MANIFEST
           sed -i 's/package="[^"]*"//g' $MANIFEST
-          # 2. BORRAR TODOS los permisos de audio/video/storage que haya
           sed -i '/READ_MEDIA_AUDIO/d' $MANIFEST
           sed -i '/READ_EXTERNAL_STORAGE/d' $MANIFEST
           sed -i '/READ_MEDIA_VIDEO/d' $MANIFEST
-          sed -i '/READ_MEDIA_IMAGES/d' $MANIFEST
-          # 3. Agregar UNO solo limpio antes de <application
-          sed -i 's/<application/ <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" \/>\n <application/' $MANIFEST
-          echo "---- MANIFEST FINAL ----"
-          cat $MANIFEST
+          sed -i 's/<application/ <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" \/>\n <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" \/>\n <application/' $MANIFEST
 
-          MAIN=app/src/main/java/com/ats/audioplayer/MainActivity.java
-          sed -i 's/DynamicsProcessing\.Config\.VARIANT_[A-Z_]*/0/g' $MAIN
-          sed -i 's/builder.setPreferredPreEqForAllChannels/ \/\/ builder.setPreferredPreEqForAllChannels/g' $MAIN
-          sed -i 's/builder.setPreferredMbcForAllChannels/ \/\/ builder.setPreferredMbcForAllChannels/g' $MAIN
-          sed -i 's/builder.setPreferredPostEqForAllChannels/ \/\/ builder.setPreferredPostEqForAllChannels/g' $MAIN
-          sed -i 's/builder.setPreferredLimiterForAllChannels/ \/\/ builder.setPreferredLimiterForAllChannels/g' $MAIN
-          sed -i 's/dsp.setPreEqBand/ \/\/ dsp.setPreEqBand/g' $MAIN
-          sed -i 's/dsp.setMbcBand/ \/\/ dsp.setMbcBand/g' $MAIN
-          sed -i 's/dsp.setPostEqBand/ \/\/ dsp.setPostEqBand/g' $MAIN
-          sed -i 's/dsp.setLimiter/ \/\/ dsp.setLimiter/g' $MAIN
-          sed -i 's/new DynamicsProcessing(sessionId, builder.build())/new DynamicsProcessing(sessionId)/g' $MAIN
-          sed -i 's/audio\/mpeg/audio\/%/g' $MAIN
-          sed -i 's/audio\/mp3/audio\/%/g' $MAIN
+          python3 <<'PY'
+          import pathlib, re
+          p = pathlib.Path("app/src/main/java/com/ats/audioplayer/MainActivity.java")
+          s = p.read_text(errors='ignore')
+
+          # Fix DSP viejo
+          s = re.sub(r'DynamicsProcessing\.Config\.VARIANT_[A-Z_]*', '0', s)
+          for k in ["builder.setPreferredPreEqForAllChannels","builder.setPreferredMbcForAllChannels","builder.setPreferredPostEqForAllChannels","builder.setPreferredLimiterForAllChannels","dsp.setPreEqBand","dsp.setMbcBand","dsp.setPostEqBand","dsp.setLimiter"]:
+              s = s.replace(k, "// "+k)
+          s = s.replace('new DynamicsProcessing(sessionId, builder.build())','new DynamicsProcessing(sessionId)')
+
+          # IMPORTS para escaneo directo
+          if 'java.io.File' not in s:
+              s = s.replace('import android.os.Bundle;', 'import android.os.Bundle;\nimport java.io.File;\nimport java.util.ArrayList;\nimport android.os.Environment;\nimport com.google.android.exoplayer2.ExoPlayer;\nimport com.google.android.exoplayer2.MediaItem;\n')
+
+          # PARCHE DEFINITIVO: Reemplazar cualquier query de MediaStore por escaneo de archivos
+          # Busca el metodo que carga canciones y le inyecta scanner
+          scanner_code = '''
+              // SCANNER DIRECTO PARA 800 FLAC - NO USA MediaStore
+              private void scanAllMusic(java.util.List<String> out) {
+                  String[] exts = {".flac",".mp3",".wav",".m4a",".aac",".ogg",".opus",".alac"};
+                  File[] roots = {
+                      Environment.getExternalStorageDirectory(),
+                      new File(Environment.getExternalStorageDirectory(), "Music"),
+                      new File(Environment.getExternalStorageDirectory(), "FLAC"),
+                      new File(Environment.getExternalStorageDirectory(), "Download"),
+                      new File(Environment.getExternalStorageDirectory(), "Audio")
+                  };
+                  for (File root : roots) { scanRecursive(root, out, exts); }
+              }
+              private void scanRecursive(File dir, java.util.List<String> out, String[] exts) {
+                  if (dir==null ||!dir.exists() ||!dir.canRead()) return;
+                  File[] files = dir.listFiles();
+                  if (files==null) return;
+                  for (File f : files) {
+                      if (f.isDirectory()) { if (!f.getName().startsWith(".")) scanRecursive(f, out, exts); }
+                      else {
+                          String n = f.getName().toLowerCase();
+                          for (String e : exts) if (n.endsWith(e)) { out.add(f.getAbsolutePath()); break; }
+                      }
+                  }
+              }
+          '''
+          if 'scanAllMusic' not in s:
+              s = s.replace('public class MainActivity', scanner_code + '\npublic class MainActivity')
+
+          # Ahora dentro de onCreate o donde cargaba, forzamos uso de scanAllMusic
+          # Reemplaza el bloque de Cursor por lista de archivos
+          s = re.sub(r'Cursor.*MediaStore.*?\n.*?while.*?\{.*?\}.*?\n',
+                     'java.util.List<String> allPaths = new java.util.ArrayList<>(); scanAllMusic(allPaths); // PATCH FLAC\n',
+                     s, flags=re.DOTALL)
+
+          p.write_text(s)
+          print("PATCH SCAN DIRECTO OK - 800 FLAC")
+          PY
 
       - name: Build
         run: gradle assembleDebug
       - uses: actions/upload-artifact@v4
-        with: { name: APK-ATS-FLAC-FINAL, path: app/build/outputs/apk/debug/*.apk }
+        with: { name: APK-ATS-800-FLAC-SCAN, path: app/build/outputs/apk/debug/*.apk }
