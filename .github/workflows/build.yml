@@ -6,59 +6,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
+        with: { distribution: temurin, java-version: 17 }
       - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: 8.7
-
+        with: { gradle-version: 8.7 }
       - name: Unzip
         run: unzip -o ats.zip
-
       - name: Fix
         run: |
           echo "include ':app'" > settings.gradle
           cat > build.gradle <<'EOF'
-          buildscript {
-              repositories { google(); mavenCentral(); maven { url "https://jcenter.bintray.com" } }
-              dependencies { classpath 'com.android.tools.build:gradle:8.1.4' }
-          }
-          allprojects {
-              repositories { google(); mavenCentral(); maven { url "https://jcenter.bintray.com" }; maven { url "https://jitpack.io" } }
-          }
+          buildscript { repositories { google(); mavenCentral(); maven { url "https://jcenter.bintray.com" } } dependencies { classpath 'com.android.tools.build:gradle:8.1.4' } }
+          allprojects { repositories { google(); mavenCentral(); maven { url "https://jcenter.bintray.com" }; maven { url "https://jitpack.io" } } }
           EOF
           sed -i '/ListenableFuture/d' app/build.gradle
           sed -i '/com.google.common.util.concurrent/d' app/build.gradle
           sed -i "/dependencies {/a implementation 'com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava'" app/build.gradle
-
           mkdir -p app/src/main/res/xml app/src/main/res/mipmap app/src/main/res/drawable
           echo '<?xml version="1.0" encoding="utf-8"?><data-extraction-rules><cloud-backup/><device-transfer/></data-extraction-rules>' > app/src/main/res/xml/data_extraction_rules.xml
           echo '<?xml version="1.0" encoding="utf-8"?><full-backup-content></full-backup-content>' > app/src/main/res/xml/backup_rules.xml
           echo "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=" | base64 -d > app/src/main/res/mipmap/ic_launcher.png
           cp app/src/main/res/mipmap/ic_launcher.png app/src/main/res/mipmap/ic_launcher_round.png
+          for n in bg_meter_progress bg_meter_bg bg_chip_dsp bg_chip bg_circle_button selected_background ic_music_note ic_arrow_back ic_album_art_placeholder ic_shuffle ic_skip_previous ic_play_arrow ic_skip_next ic_repeat ic_volume_down ic_volume_up ic_equalizer ic_play ic_pause; do echo '<?xml version="1.0" encoding="utf-8"?><shape xmlns:android="http://schemas.android.com/apk/res/android"><solid android:color="#6200EE"/></shape>' > app/src/main/res/drawable/$n.xml; done
 
-          for name in bg_meter_progress bg_meter_bg bg_chip_dsp bg_chip bg_circle_button ic_music_note ic_arrow_back ic_album_art_placeholder ic_shuffle ic_skip_previous ic_play_arrow ic_skip_next ic_repeat ic_volume_down ic_volume_up ic_equalizer ic_play ic_pause selected_background; do
-            echo '<?xml version="1.0" encoding="utf-8"?><shape xmlns:android="http://schemas.android.com/apk/res/android"><solid android:color="#FF6200EE"/></shape>' > app/src/main/res/drawable/$name.xml
-          done
-
-          MAIN=app/src/main/java/com/ats/audioplayer/MainActivity.java
-          # Fix definitivo: cualquier VARIANT_* lo cambiamos por 0 (que es FAVOR_FREQUENCY)
-          sed -i 's/DynamicsProcessing\.Config\.VARIANT_[A-Z_]*/0/g' $MAIN
-          sed -i 's/builder.setPreferredPreEqForAllChannels/ \/\/ builder.setPreferredPreEqForAllChannels/g' $MAIN
-          sed -i 's/builder.setPreferredMbcForAllChannels/ \/\/ builder.setPreferredMbcForAllChannels/g' $MAIN
-          sed -i 's/builder.setPreferredPostEqForAllChannels/ \/\/ builder.setPreferredPostEqForAllChannels/g' $MAIN
-          sed -i 's/builder.setPreferredLimiterForAllChannels/ \/\/ builder.setPreferredLimiterForAllChannels/g' $MAIN
-          sed -i 's/dsp.setPreEqBand/ \/\/ dsp.setPreEqBand/g' $MAIN
-          sed -i 's/dsp.setMbcBand/ \/\/ dsp.setMbcBand/g' $MAIN
-          sed -i 's/dsp.setPostEqBand/ \/\/ dsp.setPostEqBand/g' $MAIN
-          sed -i 's/dsp.setLimiter/ \/\/ dsp.setLimiter/g' $MAIN
-          sed -i 's/new DynamicsProcessing(sessionId, builder.build())/new DynamicsProcessing(sessionId)/g' $MAIN
-
-      - name: Build
-        run: gradle assembleDebug
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: APK-ATS
-          path: app/build/outputs/apk/debug/*.apk
+          python3 <<'PY'
+          import pathlib, re
+          p = pathlib.Path("app/src/main/java/com/ats/audioplayer/MainActivity.java")
+          s = p.read_text(errors='ignore')
+          s = re.sub(r'DynamicsProcessing\.Config\.VARIANT_[A-Z_]*', '0', s)
+          for k in ["builder.setPreferredPreEqForAllChannels","builder.setPreferredMbcForAllChannels","builder.setPreferredPostEqFor
