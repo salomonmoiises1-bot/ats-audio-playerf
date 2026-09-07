@@ -13,94 +13,61 @@ jobs:
         run: unzip -o ats.zip
       - name: Fix
         run: |
+          rm -rf app/src/main/java/com/ats/audioplayer/*
+          mkdir -p app/src/main/java/com/ats/audioplayer app/src/main/res/xml app/src/main/res/mipmap
           echo "include ':app'" > settings.gradle
           cat > build.gradle <<'EOF'
-          buildscript {
-              repositories { google(); mavenCentral(); maven { url "https://jcenter.bintray.com" } }
-              dependencies { classpath 'com.android.tools.build:gradle:8.1.4' }
-          }
-          allprojects {
-              repositories { google(); mavenCentral(); maven { url "https://jcenter.bintray.com" }; maven { url "https://jitpack.io" } }
-          }
+          buildscript { repositories { google(); mavenCentral() } dependencies { classpath 'com.android.tools.build:gradle:8.1.4' } }
+          allprojects { repositories { google(); mavenCentral() } }
           EOF
-          sed -i '/ListenableFuture/d' app/build.gradle
-          sed -i '/com.google.common.util.concurrent/d' app/build.gradle
-          sed -i "/dependencies {/a implementation 'com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava'\n implementation 'com.google.android.exoplayer:exoplayer:2.19.1'" app/build.gradle
-
-          mkdir -p app/src/main/res/xml app/src/main/res/mipmap app/src/main/res/drawable
+          cat > app/build.gradle <<'EOF'
+          plugins { id 'com.android.application' }
+          android { namespace 'com.ats.audioplayer'; compileSdk 34; defaultConfig { applicationId "com.ats.audioplayer"; minSdk 24; targetSdk 34; versionCode 1; versionName "SpotiFLAC-FIX" } compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 } }
+          dependencies { implementation 'androidx.appcompat:appcompat:1.6.1'; implementation 'com.google.android.exoplayer:exoplayer:2.19.1'; }
+          EOF
           echo '<?xml version="1.0" encoding="utf-8"?><data-extraction-rules><cloud-backup/><device-transfer/></data-extraction-rules>' > app/src/main/res/xml/data_extraction_rules.xml
           echo '<?xml version="1.0" encoding="utf-8"?><full-backup-content></full-backup-content>' > app/src/main/res/xml/backup_rules.xml
           echo "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=" | base64 -d > app/src/main/res/mipmap/ic_launcher.png
           cp app/src/main/res/mipmap/ic_launcher.png app/src/main/res/mipmap/ic_launcher_round.png
-          for n in bg_meter_progress bg_meter_bg bg_chip_dsp bg_chip bg_circle_button selected_background ic_music_note ic_arrow_back ic_album_art_placeholder ic_shuffle ic_skip_previous ic_play_arrow ic_skip_next ic_repeat ic_volume_down ic_volume_up ic_equalizer ic_play ic_pause; do
-            echo '<?xml version="1.0" encoding="utf-8"?><shape xmlns:android="http://schemas.android.com/apk/res/android"><solid android:color="#6200EE"/></shape>' > app/src/main/res/drawable/$n.xml
-          done
-
-          MANIFEST=app/src/main/AndroidManifest.xml
-          sed -i 's/ package="[^"]*"//g' $MANIFEST
-          sed -i 's/package="[^"]*"//g' $MANIFEST
-          sed -i '/READ_MEDIA_AUDIO/d' $MANIFEST
-          sed -i '/READ_EXTERNAL_STORAGE/d' $MANIFEST
-          sed -i '/READ_MEDIA_VIDEO/d' $MANIFEST
-          sed -i 's/<application/ <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" \/>\n <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" \/>\n <application/' $MANIFEST
-
-          python3 <<'PY'
-          import pathlib, re
-          p = pathlib.Path("app/src/main/java/com/ats/audioplayer/MainActivity.java")
-          s = p.read_text(errors='ignore')
-
-          # Fix DSP viejo
-          s = re.sub(r'DynamicsProcessing\.Config\.VARIANT_[A-Z_]*', '0', s)
-          for k in ["builder.setPreferredPreEqForAllChannels","builder.setPreferredMbcForAllChannels","builder.setPreferredPostEqForAllChannels","builder.setPreferredLimiterForAllChannels","dsp.setPreEqBand","dsp.setMbcBand","dsp.setPostEqBand","dsp.setLimiter"]:
-              s = s.replace(k, "// "+k)
-          s = s.replace('new DynamicsProcessing(sessionId, builder.build())','new DynamicsProcessing(sessionId)')
-
-          # IMPORTS para escaneo directo
-          if 'java.io.File' not in s:
-              s = s.replace('import android.os.Bundle;', 'import android.os.Bundle;\nimport java.io.File;\nimport java.util.ArrayList;\nimport android.os.Environment;\nimport com.google.android.exoplayer2.ExoPlayer;\nimport com.google.android.exoplayer2.MediaItem;\n')
-
-          # PARCHE DEFINITIVO: Reemplazar cualquier query de MediaStore por escaneo de archivos
-          # Busca el metodo que carga canciones y le inyecta scanner
-          scanner_code = '''
-              // SCANNER DIRECTO PARA 800 FLAC - NO USA MediaStore
-              private void scanAllMusic(java.util.List<String> out) {
-                  String[] exts = {".flac",".mp3",".wav",".m4a",".aac",".ogg",".opus",".alac"};
-                  File[] roots = {
-                      Environment.getExternalStorageDirectory(),
-                      new File(Environment.getExternalStorageDirectory(), "Music"),
-                      new File(Environment.getExternalStorageDirectory(), "FLAC"),
-                      new File(Environment.getExternalStorageDirectory(), "Download"),
-                      new File(Environment.getExternalStorageDirectory(), "Audio")
-                  };
-                  for (File root : roots) { scanRecursive(root, out, exts); }
+          cat > app/src/main/AndroidManifest.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+              <application android:icon="@mipmap/ic_launcher" android:label="ATS SpotiFLAC" android:theme="@android:style/Theme.NoTitleBar">
+                  <activity android:name=".MainActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter></activity>
+              </application>
+          </manifest>
+          EOF
+          cat > app/src/main/java/com/ats/audioplayer/MainActivity.java <<'EOF'
+          package com.ats.audioplayer;
+          import android.Manifest; import android.content.pm.PackageManager; import android.os.Bundle; import android.os.Environment; import android.widget.*; import androidx.appcompat.app.AppCompatActivity; import androidx.core.app.ActivityCompat; import com.google.android.exoplayer2.ExoPlayer; import com.google.android.exoplayer2.MediaItem; import java.io.File; import java.util.ArrayList;
+          public class MainActivity extends AppCompatActivity {
+              ExoPlayer player; ArrayList<File> flacs = new ArrayList<>();
+              @Override protected void onCreate(Bundle b){ super.onCreate(b);
+                  LinearLayout root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL);
+                  TextView title = new TextView(this); title.setPadding(20,20,20,20); title.setTextSize(18);
+                  ListView list = new ListView(this);
+                  LinearLayout controls = new LinearLayout(this); controls.setOrientation(LinearLayout.HORIZONTAL);
+                  Button prev = new Button(this); prev.setText("<<"); Button play = new Button(this); play.setText("Play/Pause"); Button next = new Button(this); next.setText(">>");
+                  controls.addView(prev); controls.addView(play); controls.addView(next);
+                  root.addView(title); root.addView(controls); root.addView(list); setContentView(root);
+                  if (ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_AUDIO)!= PackageManager.PERMISSION_GRANTED){ ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_MEDIA_AUDIO, Manifest.permission.READ_EXTERNAL_STORAGE}, 1); }
+                  player = new ExoPlayer.Builder(this).build();
+                  File base = new File(Environment.getExternalStorageDirectory(), "Music/SpotiFLAC"); scan(base);
+                  if(flacs.isEmpty()) scan(new File(Environment.getExternalStorageDirectory(), "Music"));
+                  ArrayList<String> names = new ArrayList<>(); for(File f: flacs) names.add(f.getName() + " (" + (f.length()/1024/1024) + " MB)");
+                  title.setText("SpotiFLAC: " + flacs.size() + " temas");
+                  ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, names); list.setAdapter(adapter);
+                  list.setOnItemClickListener((p,v,pos,id)->{ player.setMediaItem(MediaItem.fromUri(flacs.get(pos).getAbsolutePath())); player.prepare(); player.play(); Toast.makeText(this, "Reproduciendo: "+flacs.get(pos).getName(), Toast.LENGTH_SHORT).show(); });
+                  play.setOnClickListener(v->{ if(player.isPlaying()) player.pause(); else player.play(); });
               }
-              private void scanRecursive(File dir, java.util.List<String> out, String[] exts) {
-                  if (dir==null ||!dir.exists() ||!dir.canRead()) return;
-                  File[] files = dir.listFiles();
-                  if (files==null) return;
-                  for (File f : files) {
-                      if (f.isDirectory()) { if (!f.getName().startsWith(".")) scanRecursive(f, out, exts); }
-                      else {
-                          String n = f.getName().toLowerCase();
-                          for (String e : exts) if (n.endsWith(e)) { out.add(f.getAbsolutePath()); break; }
-                      }
-                  }
-              }
-          '''
-          if 'scanAllMusic' not in s:
-              s = s.replace('public class MainActivity', scanner_code + '\npublic class MainActivity')
-
-          # Ahora dentro de onCreate o donde cargaba, forzamos uso de scanAllMusic
-          # Reemplaza el bloque de Cursor por lista de archivos
-          s = re.sub(r'Cursor.*MediaStore.*?\n.*?while.*?\{.*?\}.*?\n',
-                     'java.util.List<String> allPaths = new java.util.ArrayList<>(); scanAllMusic(allPaths); // PATCH FLAC\n',
-                     s, flags=re.DOTALL)
-
-          p.write_text(s)
-          print("PATCH SCAN DIRECTO OK - 800 FLAC")
-          PY
+              void scan(File dir){ if(dir==null||!dir.exists()) return; File[] fs = dir.listFiles(); if(fs==null) return; for(File f: fs){ if(f.isDirectory()){ if(!f.getName().startsWith(".")) scan(f);} else { String n=f.getName().toLowerCase(); if(n.endsWith(".flac")||n.endsWith(".mp3")||n.endsWith(".wav")||n.endsWith(".m4a")) flacs.add(f);} } }
+              @Override protected void onDestroy(){ super.onDestroy(); if(player!=null) player.release(); }
+          }
+          EOF
 
       - name: Build
         run: gradle assembleDebug
       - uses: actions/upload-artifact@v4
-        with: { name: APK-ATS-800-FLAC-SCAN, path: app/build/outputs/apk/debug/*.apk }
+        with: { name: APK-SpotiFLAC-OK, path: app/build/outputs/apk/debug/*.apk }
