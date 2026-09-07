@@ -17,11 +17,9 @@ jobs:
         run: |
           unzip -o ats.zip
           ls -la
-          ls -la app
 
       - name: Fix
         run: |
-          rm -rf.github
           echo "include ':app'" > settings.gradle
           cat > build.gradle <<'EOF'
           buildscript {
