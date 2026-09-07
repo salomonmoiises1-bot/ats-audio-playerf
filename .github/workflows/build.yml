@@ -15,16 +15,18 @@ jobs:
         run: |
           rm -rf app/src/main/java/com/ats/audioplayer/*
           mkdir -p app/src/main/java/com/ats/audioplayer app/src/main/res/xml app/src/main/res/mipmap
-          echo "include ':app'" > settings.gradle
-          cat > build.gradle <<'EOF'
-          buildscript { repositories { google(); mavenCentral() } dependencies { classpath 'com.android.tools.build:gradle:8.1.4' } }
-          allprojects { repositories { google(); mavenCentral() } }
+          cat > settings.gradle <<'EOF'
+          pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
+          dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
+          include ':app'
           EOF
+          echo "// empty root" > build.gradle
           cat > app/build.gradle <<'EOF'
-          plugins { id 'com.android.application' }
-          android { namespace 'com.ats.audioplayer'; compileSdk 34; defaultConfig { applicationId "com.ats.audioplayer"; minSdk 24; targetSdk 34; versionCode 1; versionName "SpotiFLAC-FIX" } compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 } }
+          plugins { id 'com.android.application' version '8.1.4' }
+          android { namespace 'com.ats.audioplayer'; compileSdk 34; defaultConfig { applicationId "com.ats.audioplayer"; minSdk 24; targetSdk 34; versionCode 1; versionName "1.0" }; compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 } }
           dependencies { implementation 'androidx.appcompat:appcompat:1.6.1'; implementation 'com.google.android.exoplayer:exoplayer:2.19.1'; }
           EOF
+          mkdir -p app/src/main/res/xml
           echo '<?xml version="1.0" encoding="utf-8"?><data-extraction-rules><cloud-backup/><device-transfer/></data-extraction-rules>' > app/src/main/res/xml/data_extraction_rules.xml
           echo '<?xml version="1.0" encoding="utf-8"?><full-backup-content></full-backup-content>' > app/src/main/res/xml/backup_rules.xml
           echo "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=" | base64 -d > app/src/main/res/mipmap/ic_launcher.png
