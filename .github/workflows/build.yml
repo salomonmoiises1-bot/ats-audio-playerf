@@ -34,9 +34,16 @@ jobs:
           for n in bg_meter_progress bg_meter_bg bg_chip_dsp bg_chip bg_circle_button selected_background ic_music_note ic_arrow_back ic_album_art_placeholder ic_shuffle ic_skip_previous ic_play_arrow ic_skip_next ic_repeat ic_volume_down ic_volume_up ic_equalizer ic_play ic_pause; do
             echo '<?xml version="1.0" encoding="utf-8"?><shape xmlns:android="http://schemas.android.com/apk/res/android"><solid android:color="#6200EE"/></shape>' > app/src/main/res/drawable/$n.xml
           done
-          # MANIFEST FLAC
-          sed -i 's/READ_EXTERNAL_STORAGE/READ_MEDIA_AUDIO/g' app/src/main/AndroidManifest.xml
-          # JAVA FIX
+
+          # FIX MANIFEST - el error de tu captura
+          MANIFEST=app/src/main/AndroidManifest.xml
+          # 1. Sacar package viejo (Gradle 8 ya no lo usa)
+          sed -i 's/package="[^"]*"//g' $MANIFEST
+          # 2. Cambiar permiso y eliminar duplicados
+          sed -i 's/READ_EXTERNAL_STORAGE/READ_MEDIA_AUDIO/g' $MANIFEST
+          # Borra lineas duplicadas de permisos
+          awk '!seen[$0]++' $MANIFEST > tmp.xml && mv tmp.xml $MANIFEST
+
           MAIN=app/src/main/java/com/ats/audioplayer/MainActivity.java
           sed -i 's/DynamicsProcessing\.Config\.VARIANT_[A-Z_]*/0/g' $MAIN
           sed -i 's/builder.setPreferredPreEqForAllChannels/ \/\/ builder.setPreferredPreEqForAllChannels/g' $MAIN
@@ -48,12 +55,10 @@ jobs:
           sed -i 's/dsp.setPostEqBand/ \/\/ dsp.setPostEqBand/g' $MAIN
           sed -i 's/dsp.setLimiter/ \/\/ dsp.setLimiter/g' $MAIN
           sed -i 's/new DynamicsProcessing(sessionId, builder.build())/new DynamicsProcessing(sessionId)/g' $MAIN
-          # PARCHE PARA FLAC Y TODOS LOS FORMATOS
           sed -i 's/audio\/mpeg/audio\/%/g' $MAIN
           sed -i 's/audio\/mp3/audio\/%/g' $MAIN
-          sed -i 's/Manifest.permission.READ_EXTERNAL_STORAGE/Manifest.permission.READ_MEDIA_AUDIO/g' $MAIN
 
       - name: Build
         run: gradle assembleDebug
       - uses: actions/upload-artifact@v4
-        with: { name: APK-ATS-FLAC-FIX, path: app/build/outputs/apk/debug/*.apk }
+        with: { name: APK-ATS-FLAC-FIX2, path: app/build/outputs/apk/debug/*.apk }
