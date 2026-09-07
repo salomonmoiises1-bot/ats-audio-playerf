@@ -23,7 +23,7 @@ jobs:
           echo "// empty" > build.gradle
           cat > app/build.gradle <<'EOF'
           plugins { id 'com.android.application' version '8.1.4' }
-          android { namespace 'com.ats.audioplayer'; compileSdk 34; defaultConfig { applicationId "com.ats.audioplayer"; minSdk 24; targetSdk 34; versionCode 1; versionName "4.0-Android14" }; compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 } }
+          android { namespace 'com.ats.audioplayer'; compileSdk 34; defaultConfig { applicationId "com.ats.audioplayer"; minSdk 24; targetSdk 34; versionCode 1; versionName "4.1-fix" }; compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 } }
           dependencies { implementation 'androidx.appcompat:appcompat:1.6.1'; implementation 'com.google.android.material:material:1.11.0'; implementation 'com.google.android.exoplayer:exoplayer:2.19.1'; implementation 'androidx.documentfile:documentfile:1.0.1'; }
           EOF
           cat > app/src/main/res/values/strings.xml <<'EOF'
@@ -52,11 +52,11 @@ jobs:
                   <TextView android:text="SpotiFLAC" android:textColor="@color/white" android:textSize="24sp" android:textStyle="bold" android:layout_weight="1" android:layout_width="0dp" android:layout_height="wrap_content"/>
                   <TextView android:id="@+id/count" android:text="Android 14" android:textColor="@color/gray" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
               </LinearLayout>
-              <Button android:id="@+id/pick" android:text="📁 ELEGIR CARPETA Music/SpotiFLAC" android:background="@drawable/bg_accent" android:textColor="@color/white" android:layout_margin="12dp" android:layout_width="match_parent" android:layout_height="56dp"/>
+              <Button android:id="@+id/pick" android:text="ELEGIR CARPETA Music/SpotiFLAC" android:background="@drawable/bg_accent" android:textColor="@color/white" android:layout_margin="12dp" android:layout_width="match_parent" android:layout_height="56dp"/>
               <EditText android:id="@+id/search" android:hint="Buscar FLAC" android:textColorHint="#777" android:textColor="@color/white" android:background="@drawable/bg_card" android:padding="12dp" android:layout_marginHorizontal="12dp" android:layout_width="match_parent" android:layout_height="wrap_content"/>
               <ListView android:id="@+id/list" android:divider="@android:color/transparent" android:dividerHeight="8dp" android:padding="8dp" android:layout_weight="1" android:layout_width="match_parent" android:layout_height="0dp"/>
               <LinearLayout android:background="@drawable/bg_card" android:orientation="vertical" android:padding="12dp" android:layout_margin="8dp" android:layout_width="match_parent" android:layout_height="wrap_content">
-                  <TextView android:id="@+id/nowTitle" android:text="Elegí la carpeta arriba" android:textColor="@color/white" android:textStyle="bold" android:maxLines="1" android:layout_width="match_parent" android:layout_height="wrap_content"/>
+                  <TextView android:id="@+id/nowTitle" android:text="Elegi la carpeta arriba" android:textColor="@color/white" android:textStyle="bold" android:maxLines="1" android:layout_width="match_parent" android:layout_height="wrap_content"/>
                   <SeekBar android:id="@+id/seek" android:layout_marginTop="8dp" android:layout_width="match_parent" android:layout_height="wrap_content"/>
                   <LinearLayout android:gravity="center" android:orientation="horizontal" android:layout_marginTop="8dp" android:layout_width="match_parent" android:layout_height="wrap_content">
                       <ImageButton android:id="@+id/prev" android:src="@android:drawable/ic_media_previous" android:background="?attr/selectableItemBackgroundBorderless" android:layout_width="48dp" android:layout_height="48dp"/>
@@ -70,7 +70,7 @@ jobs:
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
-              <application android:icon="@mipmap/ic_launcher" android:label="ATS SpotiFLAC" android:theme="@style/Theme.ATS" android:requestLegacyExternalStorage="true">
+              <application android:icon="@mipmap/ic_launcher" android:label="ATS SpotiFLAC" android:theme="@style/Theme.ATS">
                   <activity android:name=".MainActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter></activity>
               </application>
           </manifest>
@@ -82,14 +82,14 @@ jobs:
               ExoPlayer player; ArrayList<Uri> uris=new ArrayList<>(); ArrayList<String> names=new ArrayList<>(); ArrayList<Uri> fUris=new ArrayList<>(); ArrayList<String> fNames=new ArrayList<>();
               ArrayAdapter<String> adapter; TextView count, nowTitle; SeekBar seek; Handler h=new Handler(); boolean seeking=false; int cur=-1;
               ActivityResultLauncher<Uri> picker;
+              Runnable upd;
               @Override protected void onCreate(Bundle b){ super.onCreate(b); setContentView(R.layout.activity_main);
                   ListView list=findViewById(R.id.list); count=findViewById(R.id.count); nowTitle=findViewById(R.id.nowTitle); seek=findViewById(R.id.seek);
                   EditText search=findViewById(R.id.search); Button pickBtn=findViewById(R.id.pick);
                   ImageButton prev=findViewById(R.id.prev), play=findViewById(R.id.play), next=findViewById(R.id.next);
                   player=new ExoPlayer.Builder(this).build();
-                  picker=registerForActivityResult(new ActivityResultContracts.OpenDocumentTree(), uri->{
-                      if(uri!=null){ getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION); loadFromTree(uri); }
-                  });
+                  upd=new Runnable(){ @Override public void run(){ if(player!=null &&!seeking && player.getDuration()>0){ seek.setMax((int)player.getDuration()); seek.setProgress((int)player.getCurrentPosition()); } h.postDelayed(this,500); } };
+                  picker=registerForActivityResult(new ActivityResultContracts.OpenDocumentTree(), uri->{ if(uri!=null){ getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION); loadFromTree(uri); } });
                   pickBtn.setOnClickListener(v-> picker.launch(null));
                   adapter=new ArrayAdapter<String>(this, android.R.layout.simple_list_item_2, android.R.id.text1, fNames){ @Override public android.view.View getView(int p, android.view.View v, android.view.ViewGroup parent){ android.view.View view=super.getView(p,v,parent); TextView t1=view.findViewById(android.R.id.text1); TextView t2=view.findViewById(android.R.id.text2); t1.setTextColor(0xFFFFFFFF); t2.setTextColor(0xFFB3B3B3); view.setBackgroundResource(R.drawable.bg_card); view.setPadding(24,20,24,20); return view; } };
                   list.setAdapter(adapter);
@@ -100,13 +100,11 @@ jobs:
                   prev.setOnClickListener(v->{ if(cur-1>=0) playFile(cur-1); });
                   seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){ public void onProgressChanged(SeekBar s,int p,boolean f){} public void onStartTrackingTouch(SeekBar s){ seeking=true; } public void onStopTrackingTouch(SeekBar s){ seeking=false; player.seekTo(s.getProgress()); } });
                   h.post(upd);
-                  Toast.makeText(this, "Android 14: toca el botón verde y elegí Music/SpotiFLAC", Toast.LENGTH_LONG).show();
               }
-              void loadFromTree(Uri tree){ uris.clear(); names.clear(); DocumentFile root=DocumentFile.fromTreeUri(this, tree); if(root==null) return; scanDoc(root); Collections.sort(names, String::compareToIgnoreCase); fUris.clear(); fUris.addAll(uris); fNames.clear(); fNames.addAll(names); adapter.notifyDataSetChanged(); count.setText(fUris.size()+" temas"); nowTitle.setText("Listo: "+fUris.size()+" FLAC"); if(fUris.isEmpty()) Toast.makeText(this, "Carpeta vacía, elegí Music/SpotiFLAC que tiene los 800", Toast.LENGTH_LONG).show(); }
+              void loadFromTree(Uri tree){ uris.clear(); names.clear(); DocumentFile root=DocumentFile.fromTreeUri(this, tree); if(root==null) return; scanDoc(root); fUris.clear(); fUris.addAll(uris); fNames.clear(); fNames.addAll(names); adapter.notifyDataSetChanged(); count.setText(fUris.size()+" temas"); nowTitle.setText("Listo: "+fUris.size()+" FLAC"); }
               void scanDoc(DocumentFile dir){ for(DocumentFile f: dir.listFiles()){ if(f.isDirectory()) scanDoc(f); else { String n=f.getName()!=null?f.getName().toLowerCase():""; if(n.endsWith(".flac")||n.endsWith(".mp3")||n.endsWith(".wav")||n.endsWith(".m4a")||n.endsWith(".ogg")){ uris.add(f.getUri()); names.add((f.getName()!=null?f.getName():"audio")+"\n"+(f.length()/1024/1024)+" MB"); } } } }
               void filter(String q){ q=q.toLowerCase(); fUris.clear(); fNames.clear(); for(int i=0;i<uris.size();i++){ if(names.get(i).toLowerCase().contains(q)){ fUris.add(uris.get(i)); fNames.add(names.get(i)); } } adapter.notifyDataSetChanged(); count.setText(fUris.size()+" temas"); }
               void playFile(int pos){ if(pos<0||pos>=fUris.size()) return; cur=pos; player.setMediaItem(MediaItem.fromUri(fUris.get(pos))); player.prepare(); player.play(); nowTitle.setText(fNames.get(pos).split("\n")[0]); ((ImageButton)findViewById(R.id.play)).setImageResource(android.R.drawable.ic_media_pause); }
-              Runnable upd=()->{ if(player!=null &&!seeking && player.getDuration()>0){ seek.setMax((int)player.getDuration()); seek.setProgress((int)player.getCurrentPosition()); } h.postDelayed(upd,500); };
               @Override protected void onDestroy(){ super.onDestroy(); if(player!=null) player.release(); h.removeCallbacks(upd); }
           }
           EOF
