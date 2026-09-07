@@ -14,9 +14,7 @@ jobs:
           gradle-version: 8.7
 
       - name: Unzip
-        run: |
-          unzip -o ats.zip
-          ls -la app/src/main/res/
+        run: unzip -o ats.zip
 
       - name: Fix
         run: |
@@ -30,34 +28,34 @@ jobs:
               repositories { google(); mavenCentral(); maven { url "https://jcenter.bintray.com" }; maven { url "https://jitpack.io" } }
           }
           EOF
-          # Fix guava
           sed -i '/ListenableFuture/d' app/build.gradle
           sed -i '/com.google.common.util.concurrent/d' app/build.gradle
           sed -i "/dependencies {/a implementation 'com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava'" app/build.gradle
 
-          # --- ESTO ARREGLA EL ERROR QUE VES EN LA CAPTURA ---
+          # --- Crea los archivos que faltan en tu zip ---
           mkdir -p app/src/main/res/xml
-          mkdir -p app/src/main/res/mipmap-hdpi
-          mkdir -p app/src/main/res/mipmap-mdpi
           mkdir -p app/src/main/res/mipmap
+          mkdir -p app/src/main/res/drawable
 
           cat > app/src/main/res/xml/data_extraction_rules.xml <<'XML'
-          <?xml version="1.0" encoding="utf-8"?>
-          <data-extraction-rules><cloud-backup/><device-transfer/></data-extraction-rules>
+          <?xml version="1.0" encoding="utf-8"?><data-extraction-rules><cloud-backup/><device-transfer/></data-extraction-rules>
           XML
-
           cat > app/src/main/res/xml/backup_rules.xml <<'XML'
-          <?xml version="1.0" encoding="utf-8"?>
-          <full-backup-content></full-backup-content>
+          <?xml version="1.0" encoding="utf-8"?><full-backup-content></full-backup-content>
           XML
 
-          # Crear iconos vacios para que no falle
           echo "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=" | base64 -d > app/src/main/res/mipmap/ic_launcher.png
           cp app/src/main/res/mipmap/ic_launcher.png app/src/main/res/mipmap/ic_launcher_round.png
-          cp app/src/main/res/mipmap/ic_launcher.png app/src/main/res/mipmap-hdpi/ic_launcher.png
-          cp app/src/main/res/mipmap/ic_launcher.png app/src/main/res/mipmap-hdpi/ic_launcher_round.png
-          cp app/src/main/res/mipmap/ic_launcher.png app/src/main/res/mipmap-mdpi/ic_launcher.png
-          cp app/src/main/res/mipmap/ic_launcher.png app/src/main/res/mipmap-mdpi/ic_launcher_round.png
+
+          # Crea todos los drawables que faltan como placeholders
+          for name in bg_meter_progress ic_music_note ic_arrow_back bg_chip_dsp ic_album_art_placeholder ic_shuffle ic_skip_previous ic_play_arrow bg_circle_button ic_skip_next ic_repeat ic_volume_down ic_volume_up ic_equalizer ic_play bg_meter_bg bg_chip selected_background; do
+            cat > app/src/main/res/drawable/$name.xml <<XML
+          <?xml version="1.0" encoding="utf-8"?>
+          <shape xmlns:android="http://schemas.android.com/apk/res/android"><solid android:color="#FF6200EE"/></shape>
+          XML
+          done
+
+          ls -R app/src/main/res/drawable | head -n 100
 
       - name: Build
         run: gradle assembleDebug
