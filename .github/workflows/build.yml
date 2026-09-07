@@ -16,7 +16,7 @@ jobs:
       - name: Unzip
         run: |
           unzip -o ats.zip
-          ls -la
+          ls -la app/src/main/res/
 
       - name: Fix
         run: |
@@ -30,9 +30,34 @@ jobs:
               repositories { google(); mavenCentral(); maven { url "https://jcenter.bintray.com" }; maven { url "https://jitpack.io" } }
           }
           EOF
+          # Fix guava
           sed -i '/ListenableFuture/d' app/build.gradle
           sed -i '/com.google.common.util.concurrent/d' app/build.gradle
           sed -i "/dependencies {/a implementation 'com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava'" app/build.gradle
+
+          # --- ESTO ARREGLA EL ERROR QUE VES EN LA CAPTURA ---
+          mkdir -p app/src/main/res/xml
+          mkdir -p app/src/main/res/mipmap-hdpi
+          mkdir -p app/src/main/res/mipmap-mdpi
+          mkdir -p app/src/main/res/mipmap
+
+          cat > app/src/main/res/xml/data_extraction_rules.xml <<'XML'
+          <?xml version="1.0" encoding="utf-8"?>
+          <data-extraction-rules><cloud-backup/><device-transfer/></data-extraction-rules>
+          XML
+
+          cat > app/src/main/res/xml/backup_rules.xml <<'XML'
+          <?xml version="1.0" encoding="utf-8"?>
+          <full-backup-content></full-backup-content>
+          XML
+
+          # Crear iconos vacios para que no falle
+          echo "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=" | base64 -d > app/src/main/res/mipmap/ic_launcher.png
+          cp app/src/main/res/mipmap/ic_launcher.png app/src/main/res/mipmap/ic_launcher_round.png
+          cp app/src/main/res/mipmap/ic_launcher.png app/src/main/res/mipmap-hdpi/ic_launcher.png
+          cp app/src/main/res/mipmap/ic_launcher.png app/src/main/res/mipmap-hdpi/ic_launcher_round.png
+          cp app/src/main/res/mipmap/ic_launcher.png app/src/main/res/mipmap-mdpi/ic_launcher.png
+          cp app/src/main/res/mipmap/ic_launcher.png app/src/main/res/mipmap-mdpi/ic_launcher_round.png
 
       - name: Build
         run: gradle assembleDebug
