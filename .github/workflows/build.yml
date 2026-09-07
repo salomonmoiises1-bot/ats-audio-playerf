@@ -35,14 +35,19 @@ jobs:
             echo '<?xml version="1.0" encoding="utf-8"?><shape xmlns:android="http://schemas.android.com/apk/res/android"><solid android:color="#6200EE"/></shape>' > app/src/main/res/drawable/$n.xml
           done
 
-          # FIX MANIFEST - el error de tu captura
           MANIFEST=app/src/main/AndroidManifest.xml
-          # 1. Sacar package viejo (Gradle 8 ya no lo usa)
+          # 1. Sacar el package="" que falla
+          sed -i 's/ package="[^"]*"//g' $MANIFEST
           sed -i 's/package="[^"]*"//g' $MANIFEST
-          # 2. Cambiar permiso y eliminar duplicados
-          sed -i 's/READ_EXTERNAL_STORAGE/READ_MEDIA_AUDIO/g' $MANIFEST
-          # Borra lineas duplicadas de permisos
-          awk '!seen[$0]++' $MANIFEST > tmp.xml && mv tmp.xml $MANIFEST
+          # 2. BORRAR TODOS los permisos de audio/video/storage que haya
+          sed -i '/READ_MEDIA_AUDIO/d' $MANIFEST
+          sed -i '/READ_EXTERNAL_STORAGE/d' $MANIFEST
+          sed -i '/READ_MEDIA_VIDEO/d' $MANIFEST
+          sed -i '/READ_MEDIA_IMAGES/d' $MANIFEST
+          # 3. Agregar UNO solo limpio antes de <application
+          sed -i 's/<application/ <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" \/>\n <application/' $MANIFEST
+          echo "---- MANIFEST FINAL ----"
+          cat $MANIFEST
 
           MAIN=app/src/main/java/com/ats/audioplayer/MainActivity.java
           sed -i 's/DynamicsProcessing\.Config\.VARIANT_[A-Z_]*/0/g' $MAIN
@@ -61,4 +66,4 @@ jobs:
       - name: Build
         run: gradle assembleDebug
       - uses: actions/upload-artifact@v4
-        with: { name: APK-ATS-FLAC-FIX2, path: app/build/outputs/apk/debug/*.apk }
+        with: { name: APK-ATS-FLAC-FINAL, path: app/build/outputs/apk/debug/*.apk }
