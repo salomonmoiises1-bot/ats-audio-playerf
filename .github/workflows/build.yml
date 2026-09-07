@@ -14,7 +14,7 @@ jobs:
       - name: Fix
         run: |
           rm -rf app/src/main/java/com/ats/audioplayer/* app/src/main/res
-          mkdir -p app/src/main/java/com/ats/audioplayer app/src/main/res/values app/src/main/res/xml app/src/main/res/mipmap
+          mkdir -p app/src/main/java/com/ats/audioplayer app/src/main/res/layout app/src/main/res/values app/src/main/res/drawable app/src/main/res/xml app/src/main/res/mipmap
           cat > settings.gradle <<'EOF'
           pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
           dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
@@ -23,60 +23,94 @@ jobs:
           echo "// empty" > build.gradle
           cat > app/build.gradle <<'EOF'
           plugins { id 'com.android.application' version '8.1.4' }
-          android { namespace 'com.ats.audioplayer'; compileSdk 34; defaultConfig { applicationId "com.ats.audioplayer"; minSdk 24; targetSdk 34; versionCode 1; versionName "1.0" }; compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 } }
-          dependencies { implementation 'androidx.appcompat:appcompat:1.6.1'; implementation 'com.google.android.material:material:1.11.0'; implementation 'com.google.android.exoplayer:exoplayer:2.19.1'; }
+          android { namespace 'com.ats.audioplayer'; compileSdk 34; defaultConfig { applicationId "com.ats.audioplayer"; minSdk 24; targetSdk 34; versionCode 1; versionName "4.0-Android14" }; compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 } }
+          dependencies { implementation 'androidx.appcompat:appcompat:1.6.1'; implementation 'com.google.android.material:material:1.11.0'; implementation 'com.google.android.exoplayer:exoplayer:2.19.1'; implementation 'androidx.documentfile:documentfile:1.0.1'; }
           EOF
           cat > app/src/main/res/values/strings.xml <<'EOF'
           <?xml version="1.0" encoding="utf-8"?><resources><string name="app_name">ATS SpotiFLAC</string></resources>
           EOF
           cat > app/src/main/res/values/colors.xml <<'EOF'
-          <?xml version="1.0" encoding="utf-8"?><resources><color name="black">#000000</color><color name="white">#FFFFFF</color></resources>
+          <?xml version="1.0" encoding="utf-8"?><resources><color name="bg">#121212</color><color name="card">#1E1E1E</color><color name="accent">#1DB954</color><color name="white">#FFFFFF</color><color name="gray">#B3B3B3</color></resources>
           EOF
           cat > app/src/main/res/values/themes.xml <<'EOF'
-          <?xml version="1.0" encoding="utf-8"?><resources><style name="Theme.ATS" parent="Theme.AppCompat.Light.NoActionBar"/></resources>
+          <?xml version="1.0" encoding="utf-8"?><resources><style name="Theme.ATS" parent="Theme.Material3.Dark.NoActionBar"/></resources>
+          EOF
+          cat > app/src/main/res/drawable/bg_card.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?><shape xmlns:android="http://schemas.android.com/apk/res/android"><corners android:radius="12dp"/><solid android:color="#1E1E1E"/></shape>
+          EOF
+          cat > app/src/main/res/drawable/bg_accent.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?><shape android:shape="rectangle" xmlns:android="http://schemas.android.com/apk/res/android"><corners android:radius="24dp"/><solid android:color="#1DB954"/></shape>
           EOF
           echo '<?xml version="1.0" encoding="utf-8"?><data-extraction-rules><cloud-backup/><device-transfer/></data-extraction-rules>' > app/src/main/res/xml/data_extraction_rules.xml
           echo '<?xml version="1.0" encoding="utf-8"?><full-backup-content></full-backup-content>' > app/src/main/res/xml/backup_rules.xml
           echo "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=" | base64 -d > app/src/main/res/mipmap/ic_launcher.png
           cp app/src/main/res/mipmap/ic_launcher.png app/src/main/res/mipmap/ic_launcher_round.png
+          cat > app/src/main/res/layout/activity_main.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:orientation="vertical" android:background="@color/bg" android:layout_width="match_parent" android:layout_height="match_parent">
+              <LinearLayout android:orientation="horizontal" android:padding="16dp" android:layout_width="match_parent" android:layout_height="wrap_content">
+                  <TextView android:text="SpotiFLAC" android:textColor="@color/white" android:textSize="24sp" android:textStyle="bold" android:layout_weight="1" android:layout_width="0dp" android:layout_height="wrap_content"/>
+                  <TextView android:id="@+id/count" android:text="Android 14" android:textColor="@color/gray" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+              </LinearLayout>
+              <Button android:id="@+id/pick" android:text="📁 ELEGIR CARPETA Music/SpotiFLAC" android:background="@drawable/bg_accent" android:textColor="@color/white" android:layout_margin="12dp" android:layout_width="match_parent" android:layout_height="56dp"/>
+              <EditText android:id="@+id/search" android:hint="Buscar FLAC" android:textColorHint="#777" android:textColor="@color/white" android:background="@drawable/bg_card" android:padding="12dp" android:layout_marginHorizontal="12dp" android:layout_width="match_parent" android:layout_height="wrap_content"/>
+              <ListView android:id="@+id/list" android:divider="@android:color/transparent" android:dividerHeight="8dp" android:padding="8dp" android:layout_weight="1" android:layout_width="match_parent" android:layout_height="0dp"/>
+              <LinearLayout android:background="@drawable/bg_card" android:orientation="vertical" android:padding="12dp" android:layout_margin="8dp" android:layout_width="match_parent" android:layout_height="wrap_content">
+                  <TextView android:id="@+id/nowTitle" android:text="Elegí la carpeta arriba" android:textColor="@color/white" android:textStyle="bold" android:maxLines="1" android:layout_width="match_parent" android:layout_height="wrap_content"/>
+                  <SeekBar android:id="@+id/seek" android:layout_marginTop="8dp" android:layout_width="match_parent" android:layout_height="wrap_content"/>
+                  <LinearLayout android:gravity="center" android:orientation="horizontal" android:layout_marginTop="8dp" android:layout_width="match_parent" android:layout_height="wrap_content">
+                      <ImageButton android:id="@+id/prev" android:src="@android:drawable/ic_media_previous" android:background="?attr/selectableItemBackgroundBorderless" android:layout_width="48dp" android:layout_height="48dp"/>
+                      <ImageButton android:id="@+id/play" android:src="@android:drawable/ic_media_play" android:background="@drawable/bg_accent" android:padding="12dp" android:layout_marginHorizontal="24dp" android:layout_width="56dp" android:layout_height="56dp"/>
+                      <ImageButton android:id="@+id/next" android:src="@android:drawable/ic_media_next" android:background="?attr/selectableItemBackgroundBorderless" android:layout_width="48dp" android:layout_height="48dp"/>
+                  </LinearLayout>
+              </LinearLayout>
+          </LinearLayout>
+          EOF
           cat > app/src/main/AndroidManifest.xml <<'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
-              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-              <application android:icon="@mipmap/ic_launcher" android:label="ATS SpotiFLAC" android:theme="@style/Theme.ATS">
+              <application android:icon="@mipmap/ic_launcher" android:label="ATS SpotiFLAC" android:theme="@style/Theme.ATS" android:requestLegacyExternalStorage="true">
                   <activity android:name=".MainActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter></activity>
               </application>
           </manifest>
           EOF
           cat > app/src/main/java/com/ats/audioplayer/MainActivity.java <<'EOF'
           package com.ats.audioplayer;
-          import android.Manifest; import android.content.pm.PackageManager; import android.os.Bundle; import android.os.Environment; import android.widget.*; import androidx.appcompat.app.AppCompatActivity; import androidx.core.app.ActivityCompat; import com.google.android.exoplayer2.ExoPlayer; import com.google.android.exoplayer2.MediaItem; import java.io.File; import java.util.ArrayList;
+          import android.content.Intent; import android.net.Uri; import android.os.*; import android.widget.*; import androidx.activity.result.*; import androidx.activity.result.contract.ActivityResultContracts; import androidx.appcompat.app.AppCompatActivity; import androidx.documentfile.provider.DocumentFile; import com.google.android.exoplayer2.*; import com.google.android.exoplayer2.MediaItem; import java.util.*;
           public class MainActivity extends AppCompatActivity {
-              ExoPlayer player; ArrayList<File> flacs = new ArrayList<>();
-              @Override protected void onCreate(Bundle b){ super.onCreate(b);
-                  LinearLayout root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL);
-                  TextView title = new TextView(this); title.setPadding(20,20,20,20); title.setTextSize(18);
-                  ListView list = new ListView(this);
-                  LinearLayout controls = new LinearLayout(this); controls.setOrientation(LinearLayout.HORIZONTAL);
-                  Button prev = new Button(this); prev.setText("<<"); Button play = new Button(this); play.setText("Play/Pause"); Button next = new Button(this); next.setText(">>");
-                  controls.addView(prev); controls.addView(play); controls.addView(next);
-                  root.addView(title); root.addView(controls); root.addView(list); setContentView(root);
-                  if (ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_AUDIO)!= PackageManager.PERMISSION_GRANTED){ ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_MEDIA_AUDIO, Manifest.permission.READ_EXTERNAL_STORAGE}, 1); }
-                  player = new ExoPlayer.Builder(this).build();
-                  File base = new File(Environment.getExternalStorageDirectory(), "Music/SpotiFLAC"); scan(base);
-                  if(flacs.isEmpty()) scan(new File(Environment.getExternalStorageDirectory(), "Music"));
-                  ArrayList<String> names = new ArrayList<>(); for(File f: flacs) names.add(f.getName() + " (" + (f.length()/1024/1024) + " MB)");
-                  title.setText("SpotiFLAC: " + flacs.size() + " temas");
-                  ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, names); list.setAdapter(adapter);
-                  list.setOnItemClickListener((p,v,pos,id)->{ player.setMediaItem(MediaItem.fromUri(flacs.get(pos).getAbsolutePath())); player.prepare(); player.play(); Toast.makeText(this, "Reproduciendo: "+flacs.get(pos).getName(), Toast.LENGTH_SHORT).show(); });
-                  play.setOnClickListener(v->{ if(player.isPlaying()) player.pause(); else player.play(); });
+              ExoPlayer player; ArrayList<Uri> uris=new ArrayList<>(); ArrayList<String> names=new ArrayList<>(); ArrayList<Uri> fUris=new ArrayList<>(); ArrayList<String> fNames=new ArrayList<>();
+              ArrayAdapter<String> adapter; TextView count, nowTitle; SeekBar seek; Handler h=new Handler(); boolean seeking=false; int cur=-1;
+              ActivityResultLauncher<Uri> picker;
+              @Override protected void onCreate(Bundle b){ super.onCreate(b); setContentView(R.layout.activity_main);
+                  ListView list=findViewById(R.id.list); count=findViewById(R.id.count); nowTitle=findViewById(R.id.nowTitle); seek=findViewById(R.id.seek);
+                  EditText search=findViewById(R.id.search); Button pickBtn=findViewById(R.id.pick);
+                  ImageButton prev=findViewById(R.id.prev), play=findViewById(R.id.play), next=findViewById(R.id.next);
+                  player=new ExoPlayer.Builder(this).build();
+                  picker=registerForActivityResult(new ActivityResultContracts.OpenDocumentTree(), uri->{
+                      if(uri!=null){ getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION); loadFromTree(uri); }
+                  });
+                  pickBtn.setOnClickListener(v-> picker.launch(null));
+                  adapter=new ArrayAdapter<String>(this, android.R.layout.simple_list_item_2, android.R.id.text1, fNames){ @Override public android.view.View getView(int p, android.view.View v, android.view.ViewGroup parent){ android.view.View view=super.getView(p,v,parent); TextView t1=view.findViewById(android.R.id.text1); TextView t2=view.findViewById(android.R.id.text2); t1.setTextColor(0xFFFFFFFF); t2.setTextColor(0xFFB3B3B3); view.setBackgroundResource(R.drawable.bg_card); view.setPadding(24,20,24,20); return view; } };
+                  list.setAdapter(adapter);
+                  list.setOnItemClickListener((a,v,pos,id)-> playFile(pos));
+                  search.addTextChangedListener(new android.text.TextWatcher(){ public void beforeTextChanged(CharSequence s,int a,int b,int c){} public void onTextChanged(CharSequence s,int a,int b,int c){ filter(s.toString()); } public void afterTextChanged(android.text.Editable s){} });
+                  play.setOnClickListener(v->{ if(player.isPlaying()){ player.pause(); ((ImageButton)v).setImageResource(android.R.drawable.ic_media_play);} else { player.play(); ((ImageButton)v).setImageResource(android.R.drawable.ic_media_pause);} });
+                  next.setOnClickListener(v->{ if(cur+1<fUris.size()) playFile(cur+1); });
+                  prev.setOnClickListener(v->{ if(cur-1>=0) playFile(cur-1); });
+                  seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){ public void onProgressChanged(SeekBar s,int p,boolean f){} public void onStartTrackingTouch(SeekBar s){ seeking=true; } public void onStopTrackingTouch(SeekBar s){ seeking=false; player.seekTo(s.getProgress()); } });
+                  h.post(upd);
+                  Toast.makeText(this, "Android 14: toca el botón verde y elegí Music/SpotiFLAC", Toast.LENGTH_LONG).show();
               }
-              void scan(File dir){ if(dir==null||!dir.exists()) return; File[] fs = dir.listFiles(); if(fs==null) return; for(File f: fs){ if(f.isDirectory()){ if(!f.getName().startsWith(".")) scan(f);} else { String n=f.getName().toLowerCase(); if(n.endsWith(".flac")||n.endsWith(".mp3")||n.endsWith(".wav")||n.endsWith(".m4a")) flacs.add(f);} } }
-              @Override protected void onDestroy(){ super.onDestroy(); if(player!=null) player.release(); }
+              void loadFromTree(Uri tree){ uris.clear(); names.clear(); DocumentFile root=DocumentFile.fromTreeUri(this, tree); if(root==null) return; scanDoc(root); Collections.sort(names, String::compareToIgnoreCase); fUris.clear(); fUris.addAll(uris); fNames.clear(); fNames.addAll(names); adapter.notifyDataSetChanged(); count.setText(fUris.size()+" temas"); nowTitle.setText("Listo: "+fUris.size()+" FLAC"); if(fUris.isEmpty()) Toast.makeText(this, "Carpeta vacía, elegí Music/SpotiFLAC que tiene los 800", Toast.LENGTH_LONG).show(); }
+              void scanDoc(DocumentFile dir){ for(DocumentFile f: dir.listFiles()){ if(f.isDirectory()) scanDoc(f); else { String n=f.getName()!=null?f.getName().toLowerCase():""; if(n.endsWith(".flac")||n.endsWith(".mp3")||n.endsWith(".wav")||n.endsWith(".m4a")||n.endsWith(".ogg")){ uris.add(f.getUri()); names.add((f.getName()!=null?f.getName():"audio")+"\n"+(f.length()/1024/1024)+" MB"); } } } }
+              void filter(String q){ q=q.toLowerCase(); fUris.clear(); fNames.clear(); for(int i=0;i<uris.size();i++){ if(names.get(i).toLowerCase().contains(q)){ fUris.add(uris.get(i)); fNames.add(names.get(i)); } } adapter.notifyDataSetChanged(); count.setText(fUris.size()+" temas"); }
+              void playFile(int pos){ if(pos<0||pos>=fUris.size()) return; cur=pos; player.setMediaItem(MediaItem.fromUri(fUris.get(pos))); player.prepare(); player.play(); nowTitle.setText(fNames.get(pos).split("\n")[0]); ((ImageButton)findViewById(R.id.play)).setImageResource(android.R.drawable.ic_media_pause); }
+              Runnable upd=()->{ if(player!=null &&!seeking && player.getDuration()>0){ seek.setMax((int)player.getDuration()); seek.setProgress((int)player.getCurrentPosition()); } h.postDelayed(upd,500); };
+              @Override protected void onDestroy(){ super.onDestroy(); if(player!=null) player.release(); h.removeCallbacks(upd); }
           }
           EOF
       - name: Build
         run: gradle assembleDebug
       - uses: actions/upload-artifact@v4
-        with: { name: APK-SpotiFLAC-OK, path: app/build/outputs/apk/debug/*.apk }
+        with: { name: APK-SpotiFLAC-Android14, path: app/build/outputs/apk/debug/*.apk }
