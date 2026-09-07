@@ -16,15 +16,12 @@ jobs:
       - name: Unzip
         run: |
           unzip -o ats.zip
-          APP_PATH=$(find. -type d -name app | head -n 1)
-          echo "App en: $APP_PATH"
-          PROJ=$(dirname "$APP_PATH")
-          echo "Proyecto en: $PROJ"
-          cp -r $PROJ/*.
           ls -la
+          ls -la app
 
       - name: Fix
         run: |
+          rm -rf.github
           echo "include ':app'" > settings.gradle
           cat > build.gradle <<'EOF'
           buildscript {
